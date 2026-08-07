@@ -73,7 +73,6 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
     private var limitWarningsEnabled = true
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.isVisible = true
         if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
@@ -976,10 +975,20 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
 
 @main
 private enum CodexControlBarApp {
+    // NSApplication.delegate is weak. A delegate stored only in main() can be
+    // released after launch, which also releases its NSStatusItem while the
+    // application process keeps running invisibly. Retain it for the complete
+    // lifetime of the process.
+    private static let applicationDelegate = ControlBarController()
+
     static func main() {
         let app = NSApplication.shared
-        let delegate = ControlBarController()
-        app.delegate = delegate
+        // Set the accessory policy before AppKit starts. Doing this from
+        // applicationDidFinishLaunching is too late on some systems: AppKit
+        // creates a detached 22pt status window at the screen edge instead of
+        // inserting the item into the actual system menu bar.
+        app.setActivationPolicy(.accessory)
+        app.delegate = applicationDelegate
         app.run()
     }
 }

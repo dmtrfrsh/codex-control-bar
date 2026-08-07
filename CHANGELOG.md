@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0-beta.3
+
+- Retain the AppKit delegate for the complete process lifetime.
+- Register accessory mode before AppKit starts its run loop.
+- Use the stable `io.github.dmtrfrsh.codex-control-bar` bundle identifier.
+- Fix status items being placed behind system menu extras after moving the app.
+
 ## 0.7.0-beta.2
 
 - Create and explicitly reveal the status item after AppKit finishes launching.

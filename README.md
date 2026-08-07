@@ -9,7 +9,7 @@ shipping session content to another service.
 > by, or supported by OpenAI. Codex and OpenAI are trademarks of their
 > respective owners.
 
-Current release: **0.7.0-beta.2**.
+Current release: **0.7.0-beta.3**.
 
 ## Features
 
