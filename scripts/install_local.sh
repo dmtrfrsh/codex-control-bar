@@ -64,7 +64,13 @@ if [ "$WITH_STATUSLINE" -eq 1 ]; then
 fi
 
 if [ "$LAUNCH_APP" -eq 1 ]; then
-  open "$DESTINATION"
+  # Replacing an app bundle does not replace an already running executable;
+  # without a restart an update appears installed while the old code remains
+  # resident until logout. Give LaunchServices a moment after termination to
+  # avoid its transient -600 error, then force a fresh instance.
+  pkill -x CodexControlBar >/dev/null 2>&1 || true
+  sleep 1
+  open -n "$DESTINATION"
 fi
 echo "Installed Codex Control Bar in $DESTINATION"
 echo "Open /hooks in Codex and approve the newly installed hooks if prompted."

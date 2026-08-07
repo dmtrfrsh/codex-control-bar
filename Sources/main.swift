@@ -40,7 +40,10 @@ private struct LimitWindowValue {
 }
 
 private final class ControlBarController: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotificationCenterDelegate {
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    // Creating an NSStatusItem before AppKit has finished launching can leave a
+    // healthy accessory process with no menu-bar window on some launch paths.
+    // Keep it strongly owned, but create it only once the application is ready.
+    private var statusItem: NSStatusItem!
     private let menu = NSMenu()
     private let decoder = JSONDecoder()
     private let fileManager = FileManager.default
@@ -71,6 +74,8 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem.isVisible = true
         if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
            let applicationIcon = NSImage(contentsOf: iconURL) {
             NSApp.applicationIconImage = applicationIcon
@@ -79,6 +84,7 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
         statusItem.menu = menu
         if let button = statusItem.button {
             button.image = StatusIconRenderer.image(state: .idle, phase: 0)
+            button.imageScaling = .scaleProportionallyDown
             button.imagePosition = .imageLeading
             button.title = ""
         }

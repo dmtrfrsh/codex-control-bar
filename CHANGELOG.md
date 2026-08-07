@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0-beta.2
+
+- Create and explicitly reveal the status item after AppKit finishes launching.
+- Improve GPT Knot contrast on dark and light menu bars.
+- Restart the running application after local updates so the new binary is used.
+
 ## 0.7.0-beta.1
 
 - Native macOS menu-bar dashboard for local Codex sessions.

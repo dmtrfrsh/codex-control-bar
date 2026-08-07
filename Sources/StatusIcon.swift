@@ -27,7 +27,9 @@ enum StatusIconRenderer {
     private static let frameCount = 40
     private static var cache: [String: NSImage] = [:]
 
-    private static let codexBlue = NSColor(calibratedRed: 0.00, green: 0.32, blue: 0.72, alpha: 1)
+    // Bright enough to remain legible on the translucent dark menu bar while
+    // preserving the Codex-blue identity on light backgrounds.
+    private static let codexBlue = NSColor(calibratedRed: 0.00, green: 0.50, blue: 0.96, alpha: 1)
     private static let electricBlue = NSColor(calibratedRed: 0.00, green: 0.62, blue: 1.00, alpha: 1)
     private static let cyan = NSColor(calibratedRed: 0.15, green: 0.91, blue: 1.00, alpha: 1)
     private static let violet = NSColor(calibratedRed: 0.43, green: 0.38, blue: 1.00, alpha: 1)
@@ -116,7 +118,7 @@ enum StatusIconRenderer {
                     color: armColor(state: state, arm: arm, wave: wave),
                     width: 1.65 + motion.strokePulse * wave)
         }
-        NSColor(calibratedWhite: 0.06, alpha: state == .idle ? 0.24 : 0.16).setStroke()
+        NSColor.labelColor.withAlphaComponent(state == .idle ? 0.42 : 0.28).setStroke()
         let aperture = NSBezierPath(ovalIn: NSRect(x: center.x - 1.15, y: center.y - 1.15,
                                                    width: 2.3, height: 2.3))
         aperture.lineWidth = 0.45
@@ -208,8 +210,11 @@ enum StatusIconRenderer {
         rotationTransform.translateX(by: -center.x, yBy: -center.y)
         path.transform(using: rotationTransform as AffineTransform)
 
-        NSColor(calibratedWhite: 0.01, alpha: 0.62).setStroke()
-        path.lineWidth = width + 0.78
+        // Dynamic labelColor becomes black on a light menu bar and white on a
+        // dark one. It prevents the non-template blue artwork from vanishing
+        // against either wallpaper-derived menu-bar appearance.
+        NSColor.labelColor.withAlphaComponent(0.78).setStroke()
+        path.lineWidth = width + 1.08
         path.stroke()
         let shadow = NSShadow()
         shadow.shadowColor = color.withAlphaComponent(0.52)
