@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: ./scripts/test.sh
+      - name: Build application
+        run: ./build.sh
+      - name: Verify bundle
+        run: |
+          codesign --verify --deep --strict build/CodexControlBar.app
+          plutil -lint build/CodexControlBar.app/Contents/Info.plist
+          test -s build/CodexControlBar.app/Contents/Resources/AppIcon.icns
