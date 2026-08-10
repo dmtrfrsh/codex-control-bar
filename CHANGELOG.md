@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0-beta.4
+
+- Detect Desktop, CLI, and IDE sessions from rollout `session_meta`.
+- Remove completed Desktop tasks after a short notification grace period.
+- Remove stale CLI entries when their owning process has exited.
+- Preserve the current idle CLI session while its terminal process remains open.
+
 ## 0.7.0-beta.3
 
 - Retain the AppKit delegate for the complete process lifetime.

@@ -93,6 +93,24 @@ class HookTests(unittest.TestCase):
     def test_safe_session_id(self):
         self.assertEqual(update.safe_id("../thr bad"), "..thrbad")
 
+    def test_surface_comes_from_rollout_session_meta(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            desktop = root / "desktop.jsonl"
+            desktop.write_text(json.dumps({"type": "session_meta", "payload": {
+                "originator": "Codex Desktop", "source": "vscode",
+            }}) + "\n", encoding="utf-8")
+            cli = root / "cli.jsonl"
+            cli.write_text(json.dumps({"type": "session_meta", "payload": {
+                "originator": "codex-tui", "source": "cli",
+            }}) + "\n", encoding="utf-8")
+
+            self.assertEqual(update.transcript_surface(desktop), "APP")
+            self.assertEqual(update.transcript_surface(cli), "CLI")
+            with mock.patch.dict(os.environ, {"__CFBundleIdentifier": "", "TERM_PROGRAM": ""}):
+                self.assertEqual(update.session_surface(desktop), "APP")
+                self.assertEqual(update.session_surface(cli), "CLI")
+
     def test_reads_git_branch_without_spawning_git(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import Foundation
 import UserNotifications
 
@@ -8,7 +9,7 @@ private struct SessionState: Decodable {
     let project: String
     let cwd: String
     let branch: String?
-    let surface: String?
+    var surface: String?
     let hostBundle: String?
     let model: String?
     let permissionMode: String?
@@ -21,6 +22,8 @@ private struct SessionState: Decodable {
     let contextPercent: Int?
     let tokens: Int?
     let window: Int?
+    let transcript: String?
+    let pid: Int?
 }
 
 private struct ContextMetric: Decodable {
@@ -71,6 +74,7 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
     private var previousMCPHealth: [String: Bool]?
     private var contextWarningsEnabled = true
     private var limitWarningsEnabled = true
+    private var transcriptSurfaceCache: [String: String] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -149,14 +153,70 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
             includingPropertiesForKeys: [.contentModificationDateKey],
             options: [.skipsHiddenFiles]
         ) else { return [] }
+        let now = Int(Date().timeIntervalSince1970)
         return urls.compactMap { url in
             guard url.pathExtension == "json", let data = try? Data(contentsOf: url) else { return nil }
-            return try? decoder.decode(SessionState.self, from: data)
+            guard var session = try? decoder.decode(SessionState.self, from: data) else { return nil }
+            if let inferred = transcriptSurface(for: session), !inferred.isEmpty {
+                session.surface = inferred
+            }
+            let age = max(0, now - session.updatedAt)
+            let isDesktop = session.surface == "APP"
+            let deadProcess = !isDesktop && session.pid.map { !processIsAlive($0) } == true
+            let completedDesktop = isDesktop && session.state == "done" && age > 15
+            let ancientUnknown = session.state == "done" && session.pid == nil && age > 86_400
+            if deadProcess || completedDesktop || ancientUnknown {
+                try? fileManager.removeItem(at: url)
+                return nil
+            }
+            return session
         }.sorted { left, right in
             if left.state == "permission" && right.state != "permission" { return true }
             if left.state != "permission" && right.state == "permission" { return false }
             return left.updatedAt > right.updatedAt
         }
+    }
+
+    private func processIsAlive(_ pid: Int) -> Bool {
+        guard pid > 1 else { return false }
+        if kill(pid_t(pid), 0) == 0 { return true }
+        return errno == EPERM
+    }
+
+    private func transcriptSurface(for session: SessionState) -> String? {
+        guard let path = session.transcript, !path.isEmpty else { return session.surface }
+        if let cached = transcriptSurfaceCache[path] { return cached }
+        guard let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) else {
+            return session.surface
+        }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: 262_144),
+              let text = String(data: data, encoding: .utf8) else {
+            return session.surface
+        }
+        for line in text.split(separator: "\n") {
+            guard let data = line.data(using: .utf8),
+                  let record = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let payload = record["payload"] as? [String: Any] else { continue }
+            let recordType = record["type"] as? String
+            let payloadType = payload["type"] as? String
+            guard recordType == "session_meta" || payloadType == "session_meta" else { continue }
+            let originator = (payload["originator"] as? String ?? "").lowercased()
+            let source = (payload["source"] as? String ?? "").lowercased()
+            let surface: String
+            if originator.contains("desktop") {
+                surface = "APP"
+            } else if source == "cli" || originator.contains("tui") {
+                surface = "CLI"
+            } else if ["vscode", "cursor", "windsurf"].contains(source) {
+                surface = "IDE"
+            } else {
+                surface = session.surface ?? ""
+            }
+            transcriptSurfaceCache[path] = surface
+            return surface
+        }
+        return session.surface
     }
 
     private func refreshStatusItem() {

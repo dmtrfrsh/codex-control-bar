@@ -55,13 +55,55 @@ def git_branch(cwd: str) -> str:
     return ""
 
 
-def session_surface() -> str:
+def transcript_session_meta(path_value: object) -> dict[str, Any]:
+    """Read the small session_meta record at the beginning of a rollout."""
+    path = Path(str(path_value or ""))
+    if not path.is_file():
+        return {}
+    try:
+        with path.open("r", encoding="utf-8", errors="ignore") as handle:
+            consumed = 0
+            for line in handle:
+                consumed += len(line)
+                if consumed > 262_144:
+                    break
+                try:
+                    record = json.loads(line)
+                except ValueError:
+                    continue
+                payload = record.get("payload") if isinstance(record, dict) else None
+                if isinstance(payload, dict) and (
+                    payload.get("type") == "session_meta" or record.get("type") == "session_meta"
+                ):
+                    return payload
+    except OSError:
+        pass
+    return {}
+
+
+def transcript_surface(path_value: object) -> str:
+    meta = transcript_session_meta(path_value)
+    originator = str(meta.get("originator") or "").lower()
+    source = str(meta.get("source") or "").lower()
+    if "desktop" in originator:
+        return "APP"
+    if source == "cli" or "tui" in originator:
+        return "CLI"
+    if source in {"vscode", "cursor", "windsurf"}:
+        return "IDE"
+    return ""
+
+
+def session_surface(transcript: object = None) -> str:
     bundle = os.environ.get("__CFBundleIdentifier", "").lower()
     terminal = os.environ.get("TERM_PROGRAM", "").lower()
-    if bundle == "com.openai.codex":
+    if bundle in {"com.openai.codex", "com.openai.chat"}:
         return "APP"
     if any(name in bundle or name in terminal for name in ("cursor", "vscode", "windsurf")):
         return "IDE"
+    inferred = transcript_surface(transcript)
+    if inferred:
+        return inferred
     return "CLI"
 
 
@@ -217,7 +259,7 @@ def process_event(event: str, payload: dict[str, Any], state_dir: Path = STATE_D
         "turnId": str(payload.get("turn_id") or previous.get("turnId") or ""),
         "project": Path(cwd).name if cwd else str(previous.get("project") or ""),
         "branch": git_branch(cwd) or str(previous.get("branch") or ""),
-        "surface": session_surface() or str(previous.get("surface") or ""),
+        "surface": session_surface(transcript) or str(previous.get("surface") or ""),
         "hostBundle": os.environ.get("__CFBundleIdentifier", "") or str(previous.get("hostBundle") or ""),
         "cwd": cwd,
         "transcript": transcript,
