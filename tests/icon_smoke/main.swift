@@ -9,6 +9,12 @@ precondition(StatusPresentation.progressDots(second: 0) == ".")
 precondition(StatusPresentation.progressDots(second: 1) == "..")
 precondition(StatusPresentation.progressDots(second: 2) == "...")
 precondition(StatusPresentation.progressDots(second: 3) == ".")
+precondition(StatusPresentation.eventIsNewer(
+    timestamp: "2026-08-12T15:03:16.622Z", thanUnix: 1_786_454_305
+))
+precondition(!StatusPresentation.eventIsNewer(
+    timestamp: "2026-08-11T13:18:00.000Z", thanUnix: 1_786_454_305
+))
 
 func saturatedPixelCount(_ image: NSImage) -> Int {
     guard let data = image.tiffRepresentation,

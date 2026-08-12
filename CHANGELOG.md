@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0-beta.5
+
+- Reconcile active Desktop state with later `task_complete` rollout events.
+- Remove orphaned permission/tool/thinking rows when lifecycle hooks were missed.
+- Keep genuinely active permission requests visible.
+
 ## 0.7.0-beta.4
 
 - Detect Desktop, CLI, and IDE sessions from rollout `session_meta`.

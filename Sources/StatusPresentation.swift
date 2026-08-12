@@ -20,4 +20,11 @@ enum StatusPresentation {
     static func progressDots(second: Int) -> String {
         String(repeating: ".", count: ((second % 3) + 3) % 3 + 1)
     }
+
+    static func eventIsNewer(timestamp: String, thanUnix updatedAt: Int) -> Bool {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let date = fractional.date(from: timestamp) ?? ISO8601DateFormatter().date(from: timestamp)
+        return date.map { Int($0.timeIntervalSince1970) > updatedAt } ?? false
+    }
 }

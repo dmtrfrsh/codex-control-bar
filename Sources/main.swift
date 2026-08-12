@@ -164,8 +164,11 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
             let isDesktop = session.surface == "APP"
             let deadProcess = !isDesktop && session.pid.map { !processIsAlive($0) } == true
             let completedDesktop = isDesktop && session.state == "done" && age > 15
+            let completedAfterState = isDesktop
+                && ["thinking", "tool", "permission"].contains(session.state)
+                && transcriptCompleted(after: session.updatedAt, path: session.transcript)
             let ancientUnknown = session.state == "done" && session.pid == nil && age > 86_400
-            if deadProcess || completedDesktop || ancientUnknown {
+            if deadProcess || completedDesktop || completedAfterState || ancientUnknown {
                 try? fileManager.removeItem(at: url)
                 return nil
             }
@@ -217,6 +220,29 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
             return surface
         }
         return session.surface
+    }
+
+    private func transcriptCompleted(after updatedAt: Int, path: String?) -> Bool {
+        guard let path, !path.isEmpty,
+              let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) else {
+            return false
+        }
+        defer { try? handle.close() }
+        let size = (try? handle.seekToEnd()) ?? 0
+        let tailSize: UInt64 = 1_500_000
+        try? handle.seek(toOffset: size > tailSize ? size - tailSize : 0)
+        guard let data = try? handle.readToEnd(),
+              let text = String(data: data, encoding: .utf8) else { return false }
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: true)
+        for line in lines.reversed() {
+            guard let data = line.data(using: .utf8),
+                  let record = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let payload = record["payload"] as? [String: Any],
+                  payload["type"] as? String == "task_complete",
+                  let timestamp = record["timestamp"] as? String else { continue }
+            return StatusPresentation.eventIsNewer(timestamp: timestamp, thanUnix: updatedAt)
+        }
+        return false
     }
 
     private func refreshStatusItem() {
