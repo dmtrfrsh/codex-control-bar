@@ -74,6 +74,8 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
     private var previousMCPHealth: [String: Bool]?
     private var contextWarningsEnabled = true
     private var limitWarningsEnabled = true
+    private var notificationsEnabled = true
+    private var notificationSoundEnabled = false
     private var transcriptSurfaceCache: [String: String] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -112,6 +114,12 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
         }
         if UserDefaults.standard.object(forKey: "limitWarningsEnabled") != nil {
             limitWarningsEnabled = UserDefaults.standard.bool(forKey: "limitWarningsEnabled")
+        }
+        if UserDefaults.standard.object(forKey: "notificationsEnabled") != nil {
+            notificationsEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
+        }
+        if UserDefaults.standard.object(forKey: "notificationSoundEnabled") != nil {
+            notificationSoundEnabled = UserDefaults.standard.bool(forKey: "notificationSoundEnabled")
         }
         loadContextSnapshot()
         configureNotifications()
@@ -425,6 +433,16 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
         playfulWords.target = self
         playfulWords.state = usePlayfulStatusWords ? .on : .off
         preferencesMenu.addItem(playfulWords)
+        preferencesMenu.addItem(.separator())
+        let notifications = NSMenuItem(title: "Popup notifications", action: #selector(toggleNotifications(_:)), keyEquivalent: "")
+        notifications.target = self
+        notifications.state = notificationsEnabled ? .on : .off
+        preferencesMenu.addItem(notifications)
+        let notificationSound = NSMenuItem(title: "Notification sound", action: #selector(toggleNotificationSound(_:)), keyEquivalent: "")
+        notificationSound.target = self
+        notificationSound.state = notificationSoundEnabled ? .on : .off
+        preferencesMenu.addItem(notificationSound)
+        preferencesMenu.addItem(.separator())
         let contextWarnings = NSMenuItem(title: "Context warnings at 75% and 90%", action: #selector(toggleContextWarnings(_:)), keyEquivalent: "")
         contextWarnings.target = self
         contextWarnings.state = contextWarningsEnabled ? .on : .off
@@ -851,6 +869,28 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
         if !limitWarningsEnabled { previousLimitLevels = nil }
     }
 
+    @objc private func toggleNotifications(_ sender: NSMenuItem) {
+        notificationsEnabled.toggle()
+        UserDefaults.standard.set(notificationsEnabled, forKey: "notificationsEnabled")
+        sender.state = notificationsEnabled ? .on : .off
+        if notificationsEnabled {
+            configureNotifications()
+        } else {
+            let center = UNUserNotificationCenter.current()
+            center.removeAllPendingNotificationRequests()
+            center.removeAllDeliveredNotifications()
+        }
+    }
+
+    @objc private func toggleNotificationSound(_ sender: NSMenuItem) {
+        notificationSoundEnabled.toggle()
+        UserDefaults.standard.set(notificationSoundEnabled, forKey: "notificationSoundEnabled")
+        sender.state = notificationSoundEnabled ? .on : .off
+        if notificationSoundEnabled && notificationsEnabled {
+            configureNotifications()
+        }
+    }
+
     private func openProject(path: String) {
         guard !path.isEmpty else { return }
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
@@ -875,6 +915,7 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
     }
 
     private func configureNotifications() {
+        guard notificationsEnabled else { return }
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
@@ -994,10 +1035,14 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
     }
 
     private func sendNotification(title: String, body: String, session: SessionState) {
+        let behavior = StatusPresentation.notificationBehavior(
+            popupsEnabled: notificationsEnabled, soundEnabled: notificationSoundEnabled
+        )
+        guard behavior.deliver else { return }
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        content.sound = .default
+        content.sound = behavior.sound ? .default : nil
         content.userInfo = ["sessionId": session.sessionId, "cwd": session.cwd]
         let request = UNNotificationRequest(
             identifier: "\(session.sessionId)-\(session.state)-\(session.updatedAt)",
@@ -1008,10 +1053,14 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
     }
 
     private func sendGeneralNotification(title: String, body: String, identifier: String) {
+        let behavior = StatusPresentation.notificationBehavior(
+            popupsEnabled: notificationsEnabled, soundEnabled: notificationSoundEnabled
+        )
+        guard behavior.deliver else { return }
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        content.sound = .default
+        content.sound = behavior.sound ? .default : nil
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
     }
@@ -1021,7 +1070,16 @@ private final class ControlBarController: NSObject, NSApplicationDelegate, NSMen
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        completionHandler([.banner, .sound])
+        let behavior = StatusPresentation.notificationBehavior(
+            popupsEnabled: notificationsEnabled, soundEnabled: notificationSoundEnabled
+        )
+        guard behavior.deliver else {
+            completionHandler([])
+            return
+        }
+        var options: UNNotificationPresentationOptions = [.banner]
+        if behavior.sound { options.insert(.sound) }
+        completionHandler(options)
     }
 
     func userNotificationCenter(

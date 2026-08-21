@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0-beta.6
+
+- Add independent popup-notification and notification-sound toggles.
+- Default notification sound to off for quieter upgrades.
+- Suppress every notification source when popups are disabled.
+- Clear pending and delivered notifications when popups are turned off.
+
 ## 0.7.0-beta.5
 
 - Reconcile active Desktop state with later `task_complete` rollout events.

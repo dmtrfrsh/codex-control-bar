@@ -15,6 +15,18 @@ precondition(StatusPresentation.eventIsNewer(
 precondition(!StatusPresentation.eventIsNewer(
     timestamp: "2026-08-11T13:18:00.000Z", thanUnix: 1_786_454_305
 ))
+precondition(StatusPresentation.notificationBehavior(
+    popupsEnabled: false, soundEnabled: false
+) == (deliver: false, sound: false))
+precondition(StatusPresentation.notificationBehavior(
+    popupsEnabled: false, soundEnabled: true
+) == (deliver: false, sound: false))
+precondition(StatusPresentation.notificationBehavior(
+    popupsEnabled: true, soundEnabled: false
+) == (deliver: true, sound: false))
+precondition(StatusPresentation.notificationBehavior(
+    popupsEnabled: true, soundEnabled: true
+) == (deliver: true, sound: true))
 
 func saturatedPixelCount(_ image: NSImage) -> Int {
     guard let data = image.tiffRepresentation,

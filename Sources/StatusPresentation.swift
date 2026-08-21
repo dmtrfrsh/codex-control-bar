@@ -27,4 +27,10 @@ enum StatusPresentation {
         let date = fractional.date(from: timestamp) ?? ISO8601DateFormatter().date(from: timestamp)
         return date.map { Int($0.timeIntervalSince1970) > updatedAt } ?? false
     }
+
+    static func notificationBehavior(
+        popupsEnabled: Bool, soundEnabled: Bool
+    ) -> (deliver: Bool, sound: Bool) {
+        (deliver: popupsEnabled, sound: popupsEnabled && soundEnabled)
+    }
 }
