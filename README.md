@@ -9,7 +9,7 @@ shipping session content to another service.
 > by, or supported by OpenAI. Codex and OpenAI are trademarks of their
 > respective owners.
 
-Current release: **0.7.0-beta.5**.
+Current release: **0.7.0-beta.6**.
 
 ## Features
 
@@ -20,7 +20,8 @@ Current release: **0.7.0-beta.5**.
   reset countdowns and explicit source information;
 - MCP servers, authentication state, tool descriptions, resources, templates,
   stale-data monitoring, and health notifications;
-- completion, permission, context, limit, and MCP notifications;
+- independently configurable popup and sound notifications for completion,
+  permission, context, limits, and MCP health;
 - selectable **GPT Knot**, **Codex Spark**, and **Pixel Pet** animations;
 - original-style thinking words with animated `.`, `..`, `...` progress;
 - clear context and limit progress bars;
